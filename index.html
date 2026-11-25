@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VidPulse AI — All-in-One Video Summarizer & Transcript Extractor</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Nastaliq+Urdu:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; background: #090d16; color: #f8fafc; }
+    .urdu-text { font-family: 'Noto Nastaliq Urdu', serif; direction: rtl; line-height: 2.2; }
+    .glass { background: rgba(17, 24, 39, 0.75); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- Navbar -->
+  <header class="border-b border-slate-800/80 bg-slate-950/80 sticky top-0 z-30 backdrop-blur">
+    <div class="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-500 to-cyan-400 flex items-center justify-center font-bold text-slate-950 text-lg">V</div>
+        <div>
+          <h1 class="font-bold text-lg tracking-tight">VidPulse <span class="text-cyan-400">AI</span></h1>
+          <p class="text-[11px] text-slate-400">TikTok • YouTube • Reels • Facebook • X Extractor</p>
+        </div>
+      </div>
+      <button onclick="toggleSettings()" class="text-xs px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 transition">
+        ⚙️ API Settings
+      </button>
+    </div>
+  </header>
+
+  <!-- Settings Modal -->
+  <div id="settingsModal" class="hidden fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+    <div class="glass rounded-2xl max-w-md w-full p-6 space-y-4">
+      <h2 class="text-lg font-bold text-white">Backend Server Configuration</h2>
+      <p class="text-xs text-slate-400">Paste the URL of your Python backend here:</p>
+      <div>
+        <label class="block text-xs text-slate-300 mb-1">Backend API URL</label>
+        <input id="apiUrlInput" type="text" placeholder="https://your-vidpulse-backend.onrender.com/api/extract"
+          class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white focus:outline-none focus:border-cyan-400" />
+      </div>
+      <div>
+        <label class="block text-xs text-slate-300 mb-1">Gemini API Key (optional — overrides the server key)</label>
+        <input id="apiKeyInput" type="password" placeholder="AIzaSy... (leave empty to use the server key)"
+          class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white focus:outline-none focus:border-cyan-400" />
+      </div>
+      <div>
+        <label class="block text-xs text-slate-300 mb-1">Access Code (this app is private — required)</label>
+        <input id="accessCodeInput" type="password" placeholder="Your private access code"
+          class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-sm text-white focus:outline-none focus:border-cyan-400" />
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="toggleSettings()" class="px-4 py-2 text-xs rounded-xl bg-slate-800 text-slate-300">Close</button>
+        <button onclick="saveSettings()" class="px-4 py-2 text-xs rounded-xl bg-cyan-500 text-slate-950 font-semibold">Save Settings</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Workspace -->
+  <main class="max-w-5xl mx-auto w-full px-4 py-8 flex-1 space-y-6">
+
+    <!-- Input Card -->
+    <div class="glass rounded-2xl p-6 shadow-xl space-y-4">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <h2 class="text-base font-semibold text-white">Paste Video Link</h2>
+        <span id="platformBadge" class="text-xs px-2.5 py-1 rounded-full bg-slate-800 text-slate-400 border border-slate-700">
+          Waiting for link...
+        </span>
+      </div>
+
+      <div class="flex flex-col sm:flex-row gap-3">
+        <input id="videoUrl" oninput="detectPlatform()" type="url"
+          placeholder="https://www.tiktok.com/... or YouTube / Instagram Reel link"
+          class="flex-1 px-4 py-3 rounded-xl bg-slate-900/90 border border-slate-700 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400" />
+        <button id="extractBtn" onclick="processVideo()"
+          class="px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-500 to-cyan-400 hover:opacity-95 text-slate-950 font-bold text-sm transition shadow-lg shadow-cyan-500/20 whitespace-nowrap">
+          ⚡ Extract & Summarize
+        </button>
+      </div>
+
+      <!-- Options -->
+      <div class="flex flex-wrap items-center gap-4 text-xs text-slate-400 pt-1">
+        <label class="flex items-center gap-1.5">
+          <span>Output Language:</span>
+          <select id="langSelect" class="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-slate-200">
+            <option value="English + Urdu">English + Urdu Both</option>
+            <option value="English">English Only</option>
+            <option value="Urdu">Urdu Only</option>
+          </select>
+        </label>
+        <label class="flex items-center gap-1.5">
+          <span>Summary Detail:</span>
+          <select id="detailSelect" class="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-slate-200">
+            <option value="Detailed">Detailed Breakdown</option>
+            <option value="Short">Quick Bullet Points</option>
+          </select>
+        </label>
+      </div>
+
+      <!-- Recent History -->
+      <div id="historySection" class="hidden pt-2 border-t border-slate-800">
+        <p class="text-xs font-semibold text-slate-400 mb-2">Recent videos</p>
+        <div id="historyList" class="flex flex-col gap-1.5"></div>
+      </div>
+    </div>
+
+    <!-- Loading Indicator -->
+    <div id="loader" class="hidden glass rounded-2xl p-8 text-center space-y-3">
+      <div class="w-10 h-10 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin mx-auto"></div>
+      <p id="loaderStep" class="text-sm font-medium text-cyan-300">Downloading audio...</p>
+      <p class="text-xs text-slate-400">This can take 10 to 20 seconds. If the backend is sleeping, the first request can take about a minute while it wakes up.</p>
+    </div>
+
+    <!-- Error Box -->
+    <div id="errorBox" class="hidden glass rounded-2xl p-5 space-y-3 border border-red-500/30">
+      <p id="errorText" class="text-sm text-red-300"></p>
+      <button onclick="processVideo()" class="px-4 py-2 text-xs rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-200 border border-red-500/30 font-semibold transition">
+        Retry
+      </button>
+    </div>
+
+    <!-- Output Area -->
+    <div id="resultSection" class="hidden glass rounded-2xl overflow-hidden shadow-xl">
+      <!-- Tabs -->
+      <div class="flex border-b border-slate-800 bg-slate-900/60 overflow-x-auto">
+        <button onclick="switchTab('summary')" id="tab-summary" class="tab-btn px-5 py-3.5 text-xs font-semibold border-b-2 border-cyan-400 text-cyan-400">
+          📝 Summary & Key Points
+        </button>
+        <button onclick="switchTab('transcript')" id="tab-transcript" class="tab-btn px-5 py-3.5 text-xs font-semibold border-b-2 border-transparent text-slate-400 hover:text-white">
+          🎙️ Full Transcript
+        </button>
+        <button onclick="switchTab('urdu')" id="tab-urdu" class="tab-btn px-5 py-3.5 text-xs font-semibold border-b-2 border-transparent text-slate-400 hover:text-white">
+          🇵🇰 Urdu Translation
+        </button>
+        <button onclick="switchTab('repurpose')" id="tab-repurpose" class="tab-btn px-5 py-3.5 text-xs font-semibold border-b-2 border-transparent text-slate-400 hover:text-white">
+          🚀 Social Captions
+        </button>
+      </div>
+
+      <!-- Toolbar -->
+      <div class="px-6 py-3 bg-slate-900/30 border-b border-slate-800/60 flex items-center justify-between">
+        <span id="videoTitle" class="text-xs font-medium text-slate-300 truncate max-w-md">Video Analysis</span>
+        <div class="flex gap-2">
+          <button onclick="copyActiveTab()" class="text-xs px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 transition">
+            📋 Copy Text
+          </button>
+          <button onclick="downloadReport('txt')" class="text-xs px-3 py-1.5 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 border border-indigo-500/30 transition">
+            ⬇️ Download .TXT
+          </button>
+          <button onclick="downloadReport('md')" class="text-xs px-3 py-1.5 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 border border-indigo-500/30 transition">
+            ⬇️ Download .MD
+          </button>
+        </div>
+      </div>
+
+      <!-- Content Panes -->
+      <div class="p-6 text-sm leading-relaxed text-slate-200 whitespace-pre-wrap">
+        <div id="content-summary" class="tab-content"></div>
+        <div id="content-transcript" class="tab-content hidden font-mono text-xs text-slate-300"></div>
+        <div id="content-urdu" class="tab-content hidden urdu-text text-base"></div>
+        <div id="content-repurpose" class="tab-content hidden"></div>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    let currentTab = 'summary';
+    let extractedData = { summary: '', transcript: '', urdu: '', repurpose: '', title: '' };
+
+    // Load saved backend URL + keys
+    const savedApi = localStorage.getItem('vidpulse_api_url') || 'https://your-vidpulse-backend.onrender.com/api/extract';
+    document.getElementById('apiUrlInput').value = savedApi;
+    document.getElementById('apiKeyInput').value = localStorage.getItem('vidpulse_api_key') || '';
+    document.getElementById('accessCodeInput').value = localStorage.getItem('vidpulse_access_code') || '';
+
+    function toggleSettings() {
+      document.getElementById('settingsModal').classList.toggle('hidden');
+    }
+
+    function saveSettings() {
+      localStorage.setItem('vidpulse_api_url', document.getElementById('apiUrlInput').value.trim());
+      localStorage.setItem('vidpulse_api_key', document.getElementById('apiKeyInput').value.trim());
+      localStorage.setItem('vidpulse_access_code', document.getElementById('accessCodeInput').value.trim());
+      toggleSettings();
+      alert('Settings saved!');
+    }
+
+    function detectPlatform() {
+      const url = document.getElementById('videoUrl').value.toLowerCase();
+      const badge = document.getElementById('platformBadge');
+      if (url.includes('tiktok.com')) {
+        badge.textContent = '🎵 TikTok Detected';
+        badge.className = 'text-xs px-2.5 py-1 rounded-full bg-pink-500/20 text-pink-300 border border-pink-500/30';
+      } else if (url.includes('youtube.com') || url.includes('youtu.be')) {
+        badge.textContent = '▶️ YouTube Detected';
+        badge.className = 'text-xs px-2.5 py-1 rounded-full bg-red-500/20 text-red-300 border border-red-500/30';
+      } else if (url.includes('instagram.com')) {
+        badge.textContent = '📸 Instagram Reel Detected';
+        badge.className = 'text-xs px-2.5 py-1 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30';
+      } else if (url.includes('facebook.com') || url.includes('fb.watch')) {
+        badge.textContent = '📘 Facebook Video Detected';
+        badge.className = 'text-xs px-2.5 py-1 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30';
+      } else if (url.includes('x.com') || url.includes('twitter.com')) {
+        badge.textContent = '𝕏 X Video Detected';
+        badge.className = 'text-xs px-2.5 py-1 rounded-full bg-slate-500/20 text-slate-200 border border-slate-500/30';
+      } else {
+        badge.textContent = 'Waiting for link...';
+        badge.className = 'text-xs px-2.5 py-1 rounded-full bg-slate-800 text-slate-400 border border-slate-700';
+      }
+    }
+
+    function switchTab(tab) {
+      currentTab = tab;
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('border-cyan-400', 'text-cyan-400');
+        btn.classList.add('border-transparent', 'text-slate-400');
+      });
+      document.getElementById('content-' + tab).classList.remove('hidden');
+      const activeBtn = document.getElementById('tab-' + tab);
+      activeBtn.classList.remove('border-transparent', 'text-slate-400');
+      activeBtn.classList.add('border-cyan-400', 'text-cyan-400');
+    }
+
+    function showError(msg) {
+      document.getElementById('errorText').textContent = msg;
+      document.getElementById('errorBox').classList.remove('hidden');
+    }
+
+    function hideError() {
+      document.getElementById('errorBox').classList.add('hidden');
+    }
+
+    async function processVideo() {
+      const url = document.getElementById('videoUrl').value.trim();
+      if (!url) { showError('Please paste a video link first!'); return; }
+
+      const apiUrl = localStorage.getItem('vidpulse_api_url') || 'https://your-vidpulse-backend.onrender.com/api/extract';
+      const apiKey = localStorage.getItem('vidpulse_api_key') || '';
+      const accessCode = localStorage.getItem('vidpulse_access_code') || '';
+      hideError();
+      document.getElementById('loader').classList.remove('hidden');
+      document.getElementById('resultSection').classList.add('hidden');
+
+      // Progress steps while the request is running
+      const steps = ['Downloading audio...', 'Transcribing with Gemini AI...', 'Building summary & translation...'];
+      let stepIdx = 0;
+      const stepEl = document.getElementById('loaderStep');
+      stepEl.textContent = steps[0];
+      const stepTimer = setInterval(() => {
+        stepIdx = (stepIdx + 1) % steps.length;
+        stepEl.textContent = steps[stepIdx];
+      }, 4000);
+
+      try {
+        const res = await fetch(apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url: url,
+            language: document.getElementById('langSelect').value,
+            detail: document.getElementById('detailSelect').value,
+            api_key: apiKey,
+            access_code: accessCode
+          })
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          if (res.status === 401) throw new Error('Wrong access code. Check the code in API Settings.');
+          throw new Error(data.detail || 'Extraction failed');
+        }
+
+        extractedData = data;
+        document.getElementById('videoTitle').textContent = data.title || 'Extracted Video Report';
+        document.getElementById('content-summary').textContent = data.summary;
+        document.getElementById('content-transcript').textContent = data.transcript;
+        document.getElementById('content-urdu').textContent = data.urdu;
+        document.getElementById('content-repurpose').textContent = data.repurpose;
+
+        document.getElementById('resultSection').classList.remove('hidden');
+        switchTab('summary');
+        saveHistory(url, data.title || 'Extracted Video Report');
+      } catch (err) {
+        const msg = (err.message && err.message.includes('Failed to fetch'))
+          ? 'Could not reach the backend server. It may be sleeping — wait about 30 seconds and press Retry. Also check that the API URL in Settings is correct.'
+          : 'Error: ' + err.message + ' Please check that your Python backend server is live and the API URL in Settings is correct.';
+        showError(msg);
+      } finally {
+        clearInterval(stepTimer);
+        document.getElementById('loader').classList.add('hidden');
+      }
+    }
+
+    function copyActiveTab() {
+      const text = extractedData[currentTab] || '';
+      navigator.clipboard.writeText(text);
+      alert('Copied to clipboard!');
+    }
+
+    function downloadReport(format) {
+      let fullText, fileName;
+      if (format === 'md') {
+        fullText = `# ${extractedData.title}\n\n## Summary\n${extractedData.summary}\n\n## Transcript\n${extractedData.transcript}\n\n## Urdu\n${extractedData.urdu}\n\n## Social Captions\n${extractedData.repurpose}`;
+        fileName = 'video-summary-report.md';
+      } else {
+        fullText = `TITLE: ${extractedData.title}\n\n=== SUMMARY ===\n${extractedData.summary}\n\n=== TRANSCRIPT ===\n${extractedData.transcript}\n\n=== URDU ===\n${extractedData.urdu}\n\n=== SOCIAL CAPTIONS ===\n${extractedData.repurpose}`;
+        fileName = 'video-summary-report.txt';
+      }
+      const blob = new Blob([fullText], { type: format === 'md' ? 'text/markdown' : 'text/plain' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = fileName;
+      a.click();
+    }
+
+    function saveHistory(url, title) {
+      let h = [];
+      try { h = JSON.parse(localStorage.getItem('vidpulse_history') || '[]'); } catch (e) { h = []; }
+      h = [{ url: url, title: title }].concat(h.filter(function (x) { return x.url !== url; })).slice(0, 5);
+      localStorage.setItem('vidpulse_history', JSON.stringify(h));
+      renderHistory();
+    }
+
+    function renderHistory() {
+      let h = [];
+      try { h = JSON.parse(localStorage.getItem('vidpulse_history') || '[]'); } catch (e) { h = []; }
+      const sec = document.getElementById('historySection');
+      const list = document.getElementById('historyList');
+      list.innerHTML = '';
+      if (!h.length) { sec.classList.add('hidden'); return; }
+      sec.classList.remove('hidden');
+      h.forEach(function (item) {
+        const btn = document.createElement('button');
+        btn.className = 'text-left text-xs px-3 py-2 rounded-lg bg-slate-900/80 hover:bg-slate-800 border border-slate-800 text-slate-300 truncate transition';
+        btn.textContent = item.title;
+        btn.onclick = function () {
+          document.getElementById('videoUrl').value = item.url;
+          detectPlatform();
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        };
+        list.appendChild(btn);
+      });
+    }
+
+    renderHistory();
+  </script>
+</body>
+</html>
